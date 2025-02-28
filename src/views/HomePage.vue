@@ -10,6 +10,7 @@
         <li>Vehicle Selection (Coming Soon)</li>
         <li>Alternative Routes (Coming Soon)</li>
         <li>Interactive Map Interface (Live Now!)</li>
+        <li>bhala</li>
       </ul>
     </div>
   </template>
