@@ -1,4 +1,4 @@
-<template>
+<!-- <template>
   <div id="app">
     <router-view></router-view>
   </div>
@@ -13,6 +13,47 @@ export default {
 <style>
 #app {
   font-family: Avenir, Helvetica, Arial, sans-serif;
+}
+</style> -->
+<!-- src/App.vue -->
+<template>
+  <div id="app">
+    <nav class="navbar">
+      <router-link to="/route-planner" class="nav-link">Route Optimization</router-link>
+      <router-link to="/logistics-management" class="nav-link">Logistics Management</router-link>
+      <router-link to="/shipping-tracking" class="nav-link">Shipping Tracking</router-link>
+      <router-link to="/crowdsourced-alerts" class="nav-link">Crowdsourced Alerts</router-link>
+    </nav>
+    <router-view></router-view>
+  </div>
+</template>
+
+<style>
+#app {
+  font-family: Arial, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.navbar {
+  background-color: #333;
+  padding: 10px;
+  display: flex;
+  justify-content: space-around;
+}
+.nav-link {
+  color: white;
+  text-decoration: none;
+  font-size: 16px;
+  padding: 5px 10px;
+}
+.nav-link:hover {
+  background-color: #555;
+  border-radius: 3px;
+}
+.router-link-active {
+  background-color: #4CAF50;
+  border-radius: 3px;
 }
 </style>
 
