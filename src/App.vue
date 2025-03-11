@@ -1,21 +1,4 @@
-<!-- <template>
-  <div id="app">
-    <router-view></router-view>
-  </div>
-</template>
-
-<script>
-export default {
-  name: 'App',
-};
-</script>
-
-<style>
-#app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
-}
-</style> -->
-<!-- src/App.vue -->
+<!-- 
 <template>
   <div id="app">
     <nav class="navbar">
@@ -26,9 +9,21 @@ export default {
     </nav>
     <router-view></router-view>
   </div>
+</template> -->
+
+<template>
+  <div id="app">
+    <router-view />
+  </div>
 </template>
 
 <style>
+#app {
+  font-family: Arial, sans-serif;
+  min-height: 100vh;
+}
+</style>
+<!-- <style>
 #app {
   font-family: Arial, sans-serif;
   min-height: 100vh;
@@ -55,7 +50,7 @@ export default {
   background-color: #4CAF50;
   border-radius: 3px;
 }
-</style>
+</style> -->
 
 <!-- <template>
   <div id="app">
