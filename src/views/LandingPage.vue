@@ -63,20 +63,20 @@
     </section>
     
     <section class="customers">
-      <h2>Trusted By</h2>
-      <div class="logo-slider">
-        <div class="logo-slide">
-          <div class="customer-logo" v-for="i in 5" :key="i">
-            <div class="placeholder-logo">Client {{ i }}</div>
-          </div>
-        </div>
-        <div class="logo-slide">
-          <div class="customer-logo" v-for="i in 5" :key="i + 5">
-            <div class="placeholder-logo">Client {{ i + 5 }}</div>
-          </div>
-        </div>
+  <h2>Trusted By</h2>
+  <div class="logo-slider">
+    <div class="logo-slide">
+      <div class="customer-logo" v-for="i in 6" :key="i">
+        <div class="placeholder-logo">Client {{ i }}</div>
       </div>
-    </section>
+    </div>
+    <div class="logo-slide">
+      <div class="customer-logo" v-for="i in 5" :key="i + 6"> <!-- Changed from `i + 5` to `i + 6` -->
+        <div class="placeholder-logo">Client {{ i + 6 }}</div>
+      </div>
+    </div>
+  </div>
+</section>
     
     <section class="cta">
       <div class="cta-content">
@@ -108,7 +108,7 @@
         </div>
       </div>
       <div class="footer-bottom">
-        <p>Built with 💪 by Team xAI | Hackathon 2025</p>
+        <p>Built with 💪 by Team Thinksync 2025</p>
         <p>© 2025 Logistics Master. All rights reserved.</p>
       </div>
     </footer>
@@ -669,7 +669,8 @@ h2::after {
   position: relative;
   z-index: 1;
   background-color: rgba(255, 255, 255, 0.9);
-  text-align: center;
+  text-align:left;
+
 }
 
 .logo-slider {
@@ -701,12 +702,13 @@ h2::after {
   background-color: rgba(37, 99, 235, 0.1);
   border: 1px solid rgba(37, 99, 235, 0.2);
   border-radius: 5px;
+  /* align-content: space-evenly; */
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--primary-color);
   font-weight: 600;
-  transition: all 0.3s;
+  transition: all -3s;
 }
 
 .placeholder-logo:hover {
@@ -763,7 +765,7 @@ h2::after {
   padding: 15px 40px;
   font-size: 18px;
   background: var(--primary-color);
-  color: white;
+  color: rgb(19, 16, 16);
   border: none;
   border-radius: 30px;
   box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4);
@@ -781,14 +783,14 @@ h2::after {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.662), transparent); 
   transition: all 0.6s;
   z-index: -1;
 }
 
 .start-btn:hover {
   transform: translateY(-5px);
-  box-shadow: 0 15px 35px rgba(37, 99, 235, 0.5);
+  box-shadow: 0 15px 35px rgba(6, 56, 158, 0.496);
 }
 
 .start-btn:hover::before {

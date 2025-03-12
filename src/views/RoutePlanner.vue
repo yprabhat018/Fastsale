@@ -115,6 +115,7 @@
           </div>
           
           <div class="metrics-emissions">
+
             <h4><i class="fas fa-cloud"></i> Emissions</h4>
             <p class="metric-value">{{ co2Emitted.toFixed(1) }} kg</p>
             <p class="metric-label">CO₂ Emissions</p>
