@@ -1,3 +1,4 @@
+
 <template>
   <div class="logistics-management">
     <div class="dashboard-header">
@@ -180,7 +181,23 @@
         <button @click="addItem" :disabled="!isValidNewItem" class="add-btn">Add Item</button>
       </div>
       
-      <div class="list-container">
+      <div class="inventory-tabs">
+        <button 
+          :class="['inventory-tab', { active: inventoryActiveTab === 'current' }]"
+          @click="inventoryActiveTab = 'current'"
+        >
+          Current Inventory
+        </button>
+        <button 
+          :class="['inventory-tab', { active: inventoryActiveTab === 'history' }]"
+          @click="inventoryActiveTab = 'history'"
+        >
+          Inventory History
+        </button>
+      </div>
+      
+      <!-- Current Inventory -->
+      <div v-if="inventoryActiveTab === 'current'" class="list-container">
         <div v-if="filteredInventory.length === 0" class="empty-state">
           <p>No inventory items match your search criteria</p>
         </div>
@@ -222,7 +239,76 @@
               <div class="actions">
                 <button @click="quickAddStock(item, 10)" class="quick-add-btn">+10</button>
                 <button @click="quickAddStock(item, 50)" class="quick-add-btn">+50</button>
-                <button @click="confirmRemoveItem(index)" class="remove-btn">Remove</button>
+                <button @click="removeInventoryItem(item, index)" class="remove-btn">Remove</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Inventory History -->
+      <div v-if="inventoryActiveTab === 'history'" class="list-container">
+        <div v-if="inventoryHistory.length === 0" class="empty-state">
+          <p>No inventory history available</p>
+        </div>
+        <div v-else>
+          <div class="history-filters">
+            <select v-model="historyActionFilter">
+              <option value="">All Actions</option>
+              <option value="removed">Removed</option>
+              <option value="added">Added</option>
+              <option value="updated">Updated</option>
+            </select>
+            <input 
+              type="date" 
+              v-model="historyDateFilter" 
+              class="date-filter" 
+              :max="getCurrentDate()"
+            />
+            <button @click="clearHistoryFilters" class="clear-filter-btn">Clear Filters</button>
+          </div>
+          
+          <div class="history-list">
+            <div v-for="(record, index) in filteredInventoryHistory" :key="index" class="history-card">
+              <div class="history-header">
+                <div class="history-title-container">
+                  <span class="history-title">{{ record.item.name }}</span>
+                  <span :class="['history-badge', record.action]">{{ record.action }}</span>
+                </div>
+                <span class="history-date">{{ formatDate(record.date) }}</span>
+              </div>
+              <div class="history-body">
+                <div class="history-row">
+                  <span class="history-label">Action:</span>
+                  <span>{{ getActionDescription(record) }}</span>
+                </div>
+                <div class="history-row">
+                  <span class="history-label">Quantity:</span>
+                  <span>{{ getQuantityDescription(record) }}</span>
+                </div>
+                <div v-if="record.notes" class="history-row">
+                  <span class="history-label">Notes:</span>
+                  <span>{{ record.notes }}</span>
+                </div>
+                <div class="history-row">
+                  <span class="history-label">Time:</span>
+                  <span>{{ formatTime(record.date) }}</span>
+                </div>
+                <div class="history-actions">
+                  <button 
+                    v-if="record.action === 'removed'" 
+                    @click="restoreInventoryItem(record)"
+                    class="restore-btn"
+                  >
+                    Restore Item
+                  </button>
+                  <button 
+                    @click="addHistoryNote(index)" 
+                    class="edit-btn"
+                  >
+                    Add Note
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -301,6 +387,22 @@
         </div>
       </div>
     </div>
+    
+    <!-- Note Modal -->
+    <div v-if="showNoteModal" class="modal">
+      <div class="modal-content">
+        <h3>Add Note</h3>
+        <textarea 
+          v-model="noteText" 
+          class="note-textarea" 
+          placeholder="Enter your note here..."
+        ></textarea>
+        <div class="modal-buttons">
+          <button @click="saveNote" class="confirm-btn save-note-btn">Save Note</button>
+          <button @click="cancelNote" class="cancel-btn">Cancel</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -349,6 +451,7 @@ export default {
       vehicleStatusFilter: '',
       
       // Inventory data
+      inventoryActiveTab: 'current',
       newItem: {
         name: '',
         quantity: null,
@@ -363,6 +466,39 @@ export default {
       inventorySearch: '',
       inventoryStockFilter: '',
       
+      // Inventory history
+      inventoryHistory: [
+        { 
+          id: 1, 
+          item: { name: 'Tape', quantity: 100, threshold: 20 }, 
+          action: 'removed', 
+          date: new Date(2025, 2, 10), 
+          prevQuantity: 100, 
+          newQuantity: 0,
+          notes: 'Expired stock removed'
+        },
+        { 
+          id: 2, 
+          item: { name: 'Boxes', quantity: 30, threshold: 20 }, 
+          action: 'updated', 
+          date: new Date(2025, 2, 12), 
+          prevQuantity: 30, 
+          newQuantity: 50,
+          notes: 'Restocked'
+        },
+        { 
+          id: 3, 
+          item: { name: 'Shipping Labels', quantity: 200, threshold: 50 }, 
+          action: 'added', 
+          date: new Date(2025, 2, 15), 
+          prevQuantity: 0, 
+          newQuantity: 200,
+          notes: ''
+        }
+      ],
+      historyActionFilter: '',
+      historyDateFilter: '',
+      
       // Assignments
       assignmentIdCounter: 1,
       newAssignment: {
@@ -375,7 +511,12 @@ export default {
       showConfirmation: false,
       confirmationMessage: '',
       pendingAction: null,
-      pendingActionData: null
+      pendingActionData: null,
+      
+      // Note modal
+      showNoteModal: false,
+      noteText: '',
+      pendingNoteIndex: null
     };
   },
   computed: {
@@ -420,6 +561,22 @@ export default {
         return matchesSearch && matchesStock;
       });
     },
+    
+    filteredInventoryHistory() {
+      return this.inventoryHistory.filter(record => {
+        const matchesAction = !this.historyActionFilter || record.action === this.historyActionFilter;
+        
+        let matchesDate = true;
+        if (this.historyDateFilter) {
+          const filterDate = new Date(this.historyDateFilter);
+          const recordDate = new Date(record.date);
+          matchesDate = recordDate.toDateString() === filterDate.toDateString();
+        }
+        
+        return matchesAction && matchesDate;
+      }).sort((a, b) => new Date(b.date) - new Date(a.date)); // Sort by date, newest first
+    },
+    
     totalInventoryItems() {
       return this.inventory.reduce((total, item) => total + item.quantity, 0);
     },
@@ -569,11 +726,22 @@ export default {
     // Inventory methods
     addItem() {
       if (this.isValidNewItem) {
-        this.inventory.push({
+        const newInventoryItem = {
           name: this.newItem.name.trim(),
           quantity: this.newItem.quantity,
           threshold: this.newItem.threshold
+        };
+        
+        this.inventory.push(newInventoryItem);
+        
+        // Add to history
+        this.addToInventoryHistory({
+          item: { ...newInventoryItem },
+          action: 'added',
+          prevQuantity: 0,
+          newQuantity: newInventoryItem.quantity
         });
+        
         // Reset form
         this.newItem = {
           name: '',
@@ -584,9 +752,21 @@ export default {
     },
     updateInventory(index) {
       const item = this.filteredInventory[index];
+      const originalItem = { ...this.inventory.find(i => i.name === item.name) };
+      
       // Ensure values are valid
       if (item.quantity < 0) item.quantity = 0;
       if (item.threshold < 0) item.threshold = 0;
+      
+      // Only add to history if quantity changed
+      if (originalItem.quantity !== item.quantity) {
+        this.addToInventoryHistory({
+          item: { ...item },
+          action: 'updated',
+          prevQuantity: originalItem.quantity,
+          newQuantity: item.quantity
+        });
+      }
       
       // In a real app, this would likely trigger a backend update
       console.log(`Updated inventory for ${item.name}: ${item.quantity} units`);
@@ -601,99 +781,237 @@ export default {
       if (item.quantity <= item.threshold) return 'low-stock';
       return 'in-stock';
     },
-    quickAddStock(item, amount) {
+   // Continuation of the methods object
+
+   quickAddStock(item, amount) {
+      const prevQuantity = item.quantity;
       item.quantity += amount;
-      // In a real app, this would likely trigger a backend update
-      console.log(`Added ${amount} units to ${item.name}`);
+      
+      // Add to history
+      this.addToInventoryHistory({
+        item: { ...item },
+        action: 'updated',
+        prevQuantity: prevQuantity,
+        newQuantity: item.quantity,
+        notes: `Quick add: +${amount} units`
+      });
     },
-    confirmRemoveItem(index) {
-      const item = this.filteredInventory[index];
+    removeInventoryItem(item, index) {
       this.confirmationMessage = `Are you sure you want to remove "${item.name}" from inventory?`;
-      this.pendingAction = this.removeItem;
+      this.pendingAction = this.confirmRemoveInventoryItem;
       this.pendingActionData = index;
       this.showConfirmation = true;
     },
-    removeItem(index) {
+    confirmRemoveInventoryItem(index) {
       const item = this.filteredInventory[index];
       const actualIndex = this.inventory.findIndex(i => i.name === item.name);
+      
       if (actualIndex !== -1) {
+        const removedItem = this.inventory[actualIndex];
+        
+        // Add to history before removing
+        this.addToInventoryHistory({
+          item: { ...removedItem },
+          action: 'removed',
+          prevQuantity: removedItem.quantity,
+          newQuantity: 0
+        });
+        
+        // Remove the item
         this.inventory.splice(actualIndex, 1);
       }
     },
+    addToInventoryHistory(record) {
+      this.inventoryHistory.push({
+        id: this.inventoryHistory.length + 1,
+        date: new Date(),
+        notes: '',
+        ...record
+      });
+    },
     matchesStockFilter(item) {
       if (!this.inventoryStockFilter) return true;
-      if (this.inventoryStockFilter === 'low' && item.quantity > 0 && item.quantity <= item.threshold) return true;
-      if (this.inventoryStockFilter === 'out' && item.quantity <= 0) return true;
-      return false;
+      
+      if (this.inventoryStockFilter === 'low') {
+        return item.quantity > 0 && item.quantity <= item.threshold;
+      }
+      
+      if (this.inventoryStockFilter === 'out') {
+        return item.quantity <= 0;
+      }
+      
+      return true;
+    },
+    clearHistoryFilters() {
+      this.historyActionFilter = '';
+      this.historyDateFilter = '';
+    },
+    restoreInventoryItem(record) {
+      // Check if item already exists
+      const existingIndex = this.inventory.findIndex(item => item.name === record.item.name);
+      
+      if (existingIndex !== -1) {
+        // Item exists, just update quantity
+        const prevQuantity = this.inventory[existingIndex].quantity;
+        this.inventory[existingIndex].quantity += record.item.quantity;
+        
+        // Add history record
+        this.addToInventoryHistory({
+          item: { ...this.inventory[existingIndex] },
+          action: 'updated',
+          prevQuantity: prevQuantity,
+          newQuantity: this.inventory[existingIndex].quantity,
+          notes: 'Restored from history'
+        });
+      } else {
+        // Item doesn't exist, add it back
+        this.inventory.push({ ...record.item });
+        
+        // Add history record
+        this.addToInventoryHistory({
+          item: { ...record.item },
+          action: 'added',
+          prevQuantity: 0,
+          newQuantity: record.item.quantity,
+          notes: 'Restored from history'
+        });
+      }
+    },
+    addHistoryNote(index) {
+      this.pendingNoteIndex = index;
+      this.noteText = this.inventoryHistory[index].notes || '';
+      this.showNoteModal = true;
+    },
+    saveNote() {
+      if (this.pendingNoteIndex !== null) {
+        this.inventoryHistory[this.pendingNoteIndex].notes = this.noteText;
+        this.cancelNote();
+      }
+    },
+    cancelNote() {
+      this.showNoteModal = false;
+      this.noteText = '';
+      this.pendingNoteIndex = null;
     },
     
     // Assignment methods
     createAssignment() {
       if (this.newAssignment.driverId && this.newAssignment.vehicleId) {
-        const driver = this.drivers.find(d => d.id === this.newAssignment.driverId);
-        const vehicle = this.vehicles.find(v => v.id === this.newAssignment.vehicleId);
+        // Create the assignment
+        const assignmentId = this.assignmentIdCounter++;
+        const newAssignment = {
+          id: assignmentId,
+          driverId: this.newAssignment.driverId,
+          vehicleId: this.newAssignment.vehicleId,
+          createdAt: new Date(),
+          endedAt: null
+        };
         
-        if (driver && vehicle) {
-          // Update driver status
+        this.assignments.push(newAssignment);
+        
+        // Update driver status
+        const driver = this.getDriverById(this.newAssignment.driverId);
+        if (driver) {
           driver.status = 'Assigned';
-          driver.vehicleId = vehicle.id;
-          
-          // Update vehicle status
-          vehicle.status = 'In Transit';
-          
-          // Create assignment record
-          this.assignments.push({
-            id: this.assignmentIdCounter++,
-            driverId: driver.id,
-            vehicleId: vehicle.id,
-            createdAt: new Date(),
-            endedAt: null
-          });
-          
-          // Reset form
-          this.newAssignment = {
-            driverId: '',
-            vehicleId: ''
-          };
+          driver.vehicleId = this.newAssignment.vehicleId;
         }
+        
+        // Update vehicle status
+        const vehicle = this.getVehicleById(this.newAssignment.vehicleId);
+        if (vehicle) {
+          vehicle.status = 'In Transit';
+        }
+        
+        // Reset form
+        this.newAssignment = {
+          driverId: '',
+          vehicleId: ''
+        };
       }
     },
     endAssignment(index) {
       const assignment = this.currentAssignments[index];
-      const driver = this.drivers.find(d => d.id === assignment.driverId);
-      const vehicle = this.vehicles.find(v => v.id === assignment.vehicleId);
-      
-      if (driver) {
-        driver.status = 'Available';
-        driver.vehicleId = '';
-      }
-      
-      if (vehicle) {
-        vehicle.status = 'Idle';
-      }
-      
-      // Mark assignment as ended
+      this.confirmationMessage = `Are you sure you want to end assignment #${assignment.id}?`;
+      this.pendingAction = this.confirmEndAssignment;
+      this.pendingActionData = index;
+      this.showConfirmation = true;
+    },
+    confirmEndAssignment(index) {
+      const assignment = this.currentAssignments[index];
       const actualIndex = this.assignments.findIndex(a => a.id === assignment.id);
+      
       if (actualIndex !== -1) {
+        // End the assignment
         this.assignments[actualIndex].endedAt = new Date();
+        
+        // Update driver status
+        const driver = this.getDriverById(assignment.driverId);
+        if (driver) {
+          driver.status = 'Available';
+          driver.vehicleId = '';
+        }
+        
+        // Update vehicle status
+        const vehicle = this.getVehicleById(assignment.vehicleId);
+        if (vehicle) {
+          vehicle.status = 'Idle';
+        }
       }
-    },
-    getDriverById(driverId) {
-      return this.drivers.find(d => d.id === driverId) || { name: 'Unknown' };
-    },
-    getVehicleById(vehicleId) {
-      return this.vehicles.find(v => v.id === vehicleId) || { name: 'Unknown' };
     },
     
     // Utility methods
+    getDriverById(driverId) {
+      return this.drivers.find(driver => driver.id === driverId) || {};
+    },
+    getVehicleById(vehicleId) {
+      return this.vehicles.find(vehicle => vehicle.id === vehicleId) || {};
+    },
     formatDate(date) {
       if (!date) return 'N/A';
-      return new Date(date).toLocaleString();
+      const d = new Date(date);
+      return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+    },
+    formatTime(date) {
+      if (!date) return 'N/A';
+      const d = new Date(date);
+      return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+    },
+    getCurrentDate() {
+      const now = new Date();
+      return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
+    },
+    getActionDescription(record) {
+      switch (record.action) {
+        case 'added':
+          return `Added to inventory`;
+        case 'removed':
+          return `Removed from inventory`;
+        case 'updated':
+          if (record.prevQuantity < record.newQuantity) {
+            return `Increased stock by ${record.newQuantity - record.prevQuantity} units`;
+          } else {
+            return `Decreased stock by ${record.prevQuantity - record.newQuantity} units`;
+          }
+        default:
+          return record.action;
+      }
+    },
+    getQuantityDescription(record) {
+      switch (record.action) {
+        case 'added':
+          return `Initial quantity: ${record.newQuantity}`;
+        case 'removed':
+          return `Final quantity: 0 (was ${record.prevQuantity})`;
+        case 'updated':
+          return `Changed from ${record.prevQuantity} to ${record.newQuantity}`;
+        default:
+          return `${record.newQuantity}`;
+      }
     },
     
-    // Confirmation modal methods
+    // Confirmation methods
     confirmAction() {
-      if (this.pendingAction && this.pendingActionData !== null) {
+      if (typeof this.pendingAction === 'function') {
         this.pendingAction(this.pendingActionData);
       }
       this.cancelConfirmation();
@@ -708,100 +1026,156 @@ export default {
 };
 </script>
 
-<style scoped>
-.logistics-management {
-  padding: 20px;
-  background-color: #f5f7fa;
-  min-height: 100vh;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+<style>
+/* Base styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-/* Dashboard Header */
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+  color: #333;
+  background-color: #f5f5f5;
+}
+
+/* Dashboard layout */
+.logistics-management {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .logistics-management {
+    padding: 15px;
+  }
+}
+
+@media (max-width: 768px) {
+  .logistics-management {
+    padding: 10px;
+  }
+}
+
+/* Header styles */
 .dashboard-header {
-  margin-bottom: 30px;
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .dashboard-header h1 {
-  color: #334155;
-  font-size: 28px;
+  font-size: 1.8rem;
   margin-bottom: 20px;
-  font-weight: 600;
+  color: #2c3e50;
 }
 
 .dashboard-stats {
   display: flex;
-  gap: 20px;
-  margin-bottom: 20px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 15px;
 }
 
 .stat-card {
-  background-color: white;
-  border-radius: 8px;
-  padding: 15px;
   flex: 1;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  min-width: 200px;
+  background-color: #f8f9fa;
+  padding: 15px;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .stat-card {
+    min-width: calc(50% - 15px);
+  }
+}
+
+@media (max-width: 480px) {
+  .stat-card {
+    min-width: 100%;
+  }
 }
 
 .stat-title {
-  font-size: 14px;
-  color: #64748b;
+  font-size: 1rem;
+  color: #6c757d;
   margin-bottom: 5px;
 }
 
 .stat-value {
-  font-size: 24px;
-  font-weight: 600;
-  color: #334155;
+  font-size: 2rem;
+  font-weight: bold;
+  color: #2c3e50;
 }
 
 .stat-subtitle {
-  font-size: 12px;
-  color: #94a3b8;
+  font-size: 0.9rem;
+  color: #6c757d;
   margin-top: 5px;
 }
 
-/* Tabs */
+/* Tab styles */
 .tabs {
   display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
   margin-bottom: 20px;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-  overflow: hidden;
+  border-bottom: 1px solid #dee2e6;
+  padding-bottom: 10px;
 }
 
 .tab-button {
-  padding: 12px 20px;
-  background: none;
-  border: none;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px 4px 0 0;
+  padding: 10px 15px;
+  font-size: 1rem;
+  color: #495057;
   cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  color: #64748b;
-  transition: all 0.2s;
-  flex: 1;
-  text-align: center;
+  transition: all 0.2s ease;
 }
 
 .tab-button:hover {
-  background-color: #f1f5f9;
+  background-color: #e9ecef;
 }
 
 .tab-button.active {
-  color: #0ea5e9;
-  border-bottom: 2px solid #0ea5e9;
-  background-color: #f0f9ff;
+  background-color: #007bff;
+  color: white;
+  border-color: #007bff;
 }
 
-/* Section Styling */
+@media (max-width: 576px) {
+  .tabs {
+    justify-content: center;
+  }
+  
+  .tab-button {
+    flex: 1;
+    text-align: center;
+    padding: 8px 10px;
+    font-size: 0.9rem;
+  }
+}
+
+/* Section styles */
 .section {
-  background-color: white;
+  background-color: #fff;
   border-radius: 8px;
   padding: 20px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
   margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .section-header {
@@ -809,296 +1183,411 @@ export default {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 15px;
 }
 
-.section h2 {
-  font-size: 20px;
-  color: #334155;
+@media (max-width: 768px) {
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.section-header h2 {
+  font-size: 1.5rem;
+  color: #2c3e50;
   margin: 0;
-  font-weight: 600;
 }
 
 .search-filter {
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
-.search-filter input,
-.search-filter select {
-  padding: 8px 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  font-size: 14px;
+@media (max-width: 576px) {
+  .search-filter {
+    width: 100%;
+  }
+  
+  .search-filter input,
+  .search-filter select {
+    flex: 1;
+  }
 }
 
-/* Form Styling */
+/* Form styles */
 .form-group {
   display: flex;
   gap: 10px;
   margin-bottom: 20px;
   flex-wrap: wrap;
-  padding: 15px;
-  background-color: #f8fafc;
-  border-radius: 6px;
-  border: 1px dashed #cbd5e1;
+}
+
+.form-group input,
+.form-group select,
+.form-group button {
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 1rem;
 }
 
 .form-group input,
 .form-group select {
-  padding: 10px 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  font-size: 14px;
   flex: 1;
-  min-width: 150px;
+  min-width: 100px;
 }
 
-.form-group input:focus,
-.form-group select:focus {
-  outline: none;
-  border-color: #0ea5e9;
-  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.1);
+@media (max-width: 768px) {
+  .form-group {
+    flex-direction: column;
+  }
+  
+  .form-group input,
+  .form-group select,
+  .form-group button {
+    width: 100%;
+  }
 }
 
-/* List Container */
+/* Button styles */
+button {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.add-btn {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.add-btn:hover {
+  background-color: #218838;
+}
+
+.add-btn:disabled {
+  background-color: #a0c7a9;
+  cursor: not-allowed;
+}
+
+.edit-btn {
+  background-color: #17a2b8;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+}
+
+.edit-btn:hover {
+  background-color: #138496;
+}
+
+.remove-btn {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+}
+
+.remove-btn:hover {
+  background-color: #c82333;
+}
+
+.quick-add-btn {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.quick-add-btn:hover {
+  background-color: #5a6268;
+}
+
+.clear-filter-btn {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+}
+
+.restore-btn {
+  background-color: #ffc107;
+  color: #212529;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+}
+
+.restore-btn:hover {
+  background-color: #e0a800;
+}
+
+/* Card styles */
 .list-container {
-  background-color: #f8fafc;
-  border-radius: 6px;
-  padding: 10px;
-  min-height: 200px;
-}
-
-.empty-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 200px;
-  color: #94a3b8;
-  font-size: 16px;
-  text-align: center;
+  margin-top: 20px;
 }
 
 .list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 15px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
 }
 
-/* Card Styling */
+@media (max-width: 640px) {
+  .list {
+    grid-template-columns: 1fr;
+  }
+}
+
 .item-card {
-  background-color: white;
-  border-radius: 8px;
+  background-color: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
   overflow: hidden;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-  display: flex;
-  flex-direction: column;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.item-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .card-header {
+  padding: 12px 15px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 15px;
-  background-color: #f1f5f9;
-  border-bottom: 1px solid #e2e8f0;
 }
 
 .card-title {
   font-weight: 600;
-  color: #334155;
-  font-size: 16px;
+  font-size: 1.1rem;
+  color: #2c3e50;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .card-body {
   padding: 15px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
 }
 
 .info-row {
   display: flex;
-  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: 5px;
 }
 
 .info-label {
   font-weight: 500;
-  color: #64748b;
-  width: 80px;
-  font-size: 14px;
+  color: #6c757d;
+  min-width: 80px;
 }
 
-.info-row select,
-.info-row input {
-  padding: 6px 10px;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  font-size: 14px;
-  flex: 1;
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 15px;
 }
 
-.info-row input.quantity-input,
-.info-row input.threshold-input {
-  width: 80px;
-  text-align: center;
-}
-
-/* Status Badges */
+/* Status badges */
 .status-badge {
   padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 12px;
+  border-radius: 30px;
+  font-size: 0.8rem;
   font-weight: 500;
   color: white;
 }
 
 .available {
-  background-color: #10b981;
+  background-color: #28a745;
 }
 
 .assigned {
-  background-color: #6366f1;
+  background-color: #17a2b8;
 }
 
 .off-duty {
-  background-color: #94a3b8;
+  background-color: #6c757d;
 }
 
 .idle {
-  background-color: #10b981;
+  background-color: #28a745;
 }
 
 .in-transit {
-  background-color: #6366f1;
+  background-color: #007bff;
 }
 
 .maintenance {
-  background-color: #f59e0b;
+  background-color: #ffc107;
+  color: #212529;
 }
 
 .in-stock {
-  background-color: #10b981;
+  background-color: #28a745;
 }
 
 .low-stock {
-  background-color: #f59e0b;
+  background-color: #ffc107;
+  color: #212529;
 }
 
 .out-of-stock {
-  background-color: #ef4444;
+  background-color: #dc3545;
 }
 
-.stock-status {
-  font-weight: 500;
-  font-size: 14px;
+/* Inventory styles */
+.quantity-input,
+.threshold-input {
+  width: 80px;
+  padding: 4px 8px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
 }
 
-.stock-status.in-stock {
-  color: #10b981;
-}
-
-.stock-status.low-stock {
-  color: #f59e0b;
-}
-
-.stock-status.out-of-stock {
-  color: #ef4444;
-}
-
-/* Action Buttons */
-.actions {
+.inventory-tabs {
   display: flex;
-  gap: 8px;
-  margin-top: 10px;
-  justify-content: flex-end;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #dee2e6;
 }
 
-.add-btn {
-  padding: 10px 16px;
-  background-color: #0ea5e9;
-  color: white;
+.inventory-tab {
+  background-color: transparent;
   border: none;
+  padding: 10px 15px;
+  font-size: 1rem;
+  color: #6c757d;
+  cursor: pointer;
+}
+
+.inventory-tab.active {
+  color: #007bff;
+  border-bottom: 2px solid #007bff;
+}
+
+/* History styles */
+.history-filters {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 576px) {
+  .history-filters {
+    flex-direction: column;
+  }
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.history-card {
+  background-color: #fff;
+  border: 1px solid #e9ecef;
   border-radius: 6px;
-  cursor: pointer;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.history-header {
+  padding: 12px 15px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.history-title-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.history-title {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: #2c3e50;
+}
+
+.history-badge {
+  padding: 4px 8px;
+  border-radius: 30px;
+  font-size: 0.8rem;
   font-weight: 500;
-  transition: background-color 0.2s;
-}
-
-.add-btn:hover:not(:disabled) {
-  background-color: #0284c7;
-}
-
-.add-btn:disabled {
-  background-color: #cbd5e1;
-  cursor: not-allowed;
-}
-
-.edit-btn {
-  padding: 6px 12px;
-  background-color: #f8fafc;
-  color: #64748b;
-  border: 1px solid #cbd5e1;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
-}
-
-.edit-btn:hover {
-  background-color: #e2e8f0;
-}
-
-.remove-btn {
-  padding: 6px 12px;
-  background-color: #fee2e2;
-  color: #ef4444;
-  border: 1px solid #fecaca;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
-}
-
-.remove-btn:hover {
-  background-color: #fecaca;
-}
-
-.quick-add-btn {
-  padding: 6px 12px;
-  background-color: #e0f2fe;
-  color: #0ea5e9;
-  border: 1px solid #bae6fd;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
-}
-
-.quick-add-btn:hover {
-  background-color: #bae6fd;
-}
-
-.confirm-btn {
-  padding: 8px 16px;
-  background-color: #ef4444;
   color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
 }
 
-.cancel-btn {
-  padding: 8px 16px;
-  background-color: #f8fafc;
-  color: #64748b;
-  border: 1px solid #cbd5e1;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
+.history-badge.added {
+  background-color: #28a745;
 }
 
-/* Modal */
+.history-badge.removed {
+  background-color: #dc3545;
+}
+
+.history-badge.updated {
+  background-color: #17a2b8;
+}
+
+.history-date {
+  font-size: 0.9rem;
+  color: #6c757d;
+}
+
+.history-body {
+  padding: 15px;
+}
+
+.history-row {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 10px;
+}
+
+@media (min-width: 576px) {
+  .history-row {
+    flex-direction: row;
+    gap: 10px;
+  }
+}
+
+.history-label {
+  font-weight: 500;
+  color: #6c757d;
+  min-width: 80px;
+}
+
+.history-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+/* Modal styles */
 .modal {
   position: fixed;
   top: 0;
@@ -1107,66 +1596,139 @@ export default {
   bottom: 0;
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
   z-index: 1000;
 }
 
 .modal-content {
-  background-color: white;
+  background-color: #fff;
   border-radius: 8px;
   padding: 20px;
-  width: 400px;
-  max-width: 90%;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .modal-content h3 {
-  font-size: 18px;
-  color: #334155;
-  margin-top: 0;
   margin-bottom: 15px;
-}
-
-.modal-content p {
-  margin-bottom: 20px;
-  color: #64748b;
+  color: #2c3e50;
 }
 
 .modal-buttons {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+  margin-top: 20px;
 }
 
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .dashboard-stats {
+.confirm-btn {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.confirm-btn:hover {
+  background-color: #0069d9;
+}
+
+.cancel-btn {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.cancel-btn:hover {
+  background-color: #5a6268;
+}
+
+.save-note-btn {
+  background-color: #28a745;
+}
+
+.save-note-btn:hover {
+  background-color: #218838;
+}
+
+.note-textarea {
+  width: 100%;
+  height: 100px;
+  padding: 10px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  resize: vertical;
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 30px;
+  color: #6c757d;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  border: 1px dashed #dee2e6;
+}
+
+/* Additional responsive adjustments */
+@media (max-width: 480px) {
+  .dashboard-header h1 {
+    font-size: 1.5rem;
+  }
+  
+  .section-header h2 {
+    font-size: 1.3rem;
+  }
+  
+  .actions {
     flex-direction: column;
   }
   
+  .actions button {
+    width: 100%;
+  }
+}
+
+/* Print styles */
+@media print {
+  body {
+    background-color: white;
+  }
+  
+  .logistics-management {
+    max-width: 100%;
+    padding: 0;
+  }
+  
+  .section {
+    box-shadow: none;
+    border: 1px solid #e9ecef;
+    break-inside: avoid;
+  }
+  
+  .tabs, 
+  .form-group, 
+  .actions, 
+  .edit-btn, 
+  .remove-btn,
+  .quick-add-btn,
   .search-filter {
-    flex-direction: column;
-    width: 100%;
-  }
-  
-  .form-group {
-    flex-direction: column;
-  }
-  
-  .form-group input,
-  .form-group select {
-    width: 100%;
+    display: none;
   }
   
   .list {
-    grid-template-columns: 1fr;
+    display: block;
   }
   
-  .section-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
+  .item-card {
+    margin-bottom: 20px;
+    box-shadow: none;
+    border: 1px solid #e9ecef;
   }
 }
 </style>

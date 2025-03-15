@@ -4,7 +4,27 @@
       <div id="map"></div>
     </div>
     <div class="control-panel">
-      <div class="saved-routes" v-if="savedRoutes.length > 0">
+      <div v-for="(route, index) in savedRoutes" :key="index" class="saved-route">
+  <div class="saved-route-info">
+    <p @click="loadSavedRoute(index)">
+      <i class="fas fa-route"></i> {{ route.summary }} ({{ route.start }} to {{ route.end }}) - 
+      {{ (route.adjustedDuration || route.duration || 0).toFixed(1) }} hrs - 
+      ₹{{ (route.fuel * costRate).toFixed(2) }}
+      <span v-if="route.costRate && route.costRate !== costRate" class="badge price-badge">
+        Originally: ₹{{ route.cost.toFixed(2) }} @ ₹{{ route.costRate }}/L
+      </span>
+      <span v-if="route.hazard && route.hazard !== 'None'" class="badge hazard-badge">{{ route.hazard }}</span>
+      <span v-if="route.priority" class="badge priority-badge">Priority: {{ route.priority }}</span>
+      <span v-if="route.status" class="badge status-badge">{{ route.status }}</span>
+    </p>
+    <input type="text" v-model="route.notes" @blur="updateNotes" placeholder="Add/edit notes..." maxlength="100" />
+  </div>
+  <button @click="deleteRoute(index)" class="delete-btn" :disabled="isDeleting">
+    <span v-if="!isDeleting"><i class="fas fa-trash-alt"></i></span>
+    <span v-else class="spinner"></span>
+  </button>
+</div>
+      <!-- <div class="saved-routes" v-if="savedRoutes.length > 0">
         <h3><i class="fas fa-bookmark"></i> Saved Routes</h3>
         <button @click="exportToCSV" class="export-btn"><i class="fas fa-file-export"></i> Export to CSV</button>
         <div v-for="(route, index) in savedRoutes" :key="index" class="saved-route">
@@ -24,7 +44,7 @@
             <span v-else class="spinner"></span>
           </button>
         </div>
-      </div>
+      </div> -->
       <div class="section-card main-form">
         <h2><i class="fas fa-map-marked-alt"></i> Plan Your Route</h2>
         <div class="input-group">
@@ -58,23 +78,42 @@
         </button>
       </div>
 
-      <div class="form-row">
-        <div class="section-card half fuel-costs-section">
+   <div class="form-row">
+    <div class="section-card half fuel-costs-section"  >
+  <h3><i class="fas fa-gas-pump"></i> Fuel Costs</h3>
+  <div class="input-group">
+    <input  id="petrol-cost"
+      type="number" 
+      v-model.number="costRate" 
+      step="1" 
+      min="0" 
+      placeholder="Petrol Cost (₹/L)" 
+      class="cost-rate-input" 
+      @change="updateFuelCost"
+    />
+    <span class="unit">₹/L</span>
+  </div>
+</div>
+        <!-- <div class="section-card half fuel-costs-section">
           <h3><i class="fas fa-gas-pump"></i> Fuel Costs</h3>
           <div class="input-group">
-            <input type="number" v-model.number="costRate" step="1" min="0" placeholder="Petrol Cost (₹/L)" class="cost-rate-input" />
+            <input id="petrol-cost" type="number" step="1" min="0" placeholder="Petrol Cost (₹/L)" class="cost-rate-input">
+
+           <input type="number" v-model.number="costRate" step="1" min="0" placeholder="Petrol Cost (₹/L)" class="cost-rate-input" /> 
             <span class="unit">₹/L</span>
           </div>
-        </div>
+        </div>  -->
 
         <div class="section-card half time-adjustment-section">
           <h3><i class="fas fa-clock"></i> Time Adjustment</h3>
           <div class="input-group">
-            <input type="number" v-model.number="timeAdjustment" step="0.1" placeholder="Time Adjust (hrs)" class="time-adjust-input" />
+            <input  type="number" v-model.number="timeAdjustment" step="0.1" placeholder="Time Adjust (hrs)" class="time-adjust-input" />
             <span class="unit">hrs</span>
           </div>
         </div>
       </div>
+
+
 
       <div class="section-card routes" v-if="routes.length > 0">
         <h3><i class="fas fa-road"></i> Route Options</h3>
@@ -95,33 +134,38 @@
           <span class="distance-badge"><i class="fas fa-road"></i> {{ distance.toFixed(1) }} km</span>
         </div>
         
-        <div class="metrics-grid">
-          <div class="metrics-time">
-            <h4><i class="fas fa-hourglass-half"></i> Time</h4>
-            <p class="metric-value">{{ (routes[selectedRoute].duration + timeAdjustment).toFixed(1) }} hrs</p>
-            <p class="metric-label">Adjusted Duration</p>
-          </div>
-          
-          <div class="metrics-cost">
-            <h4><i class="fas fa-rupee-sign"></i> Cost</h4>
-            <p class="metric-value">₹{{ (fuelUsed * costRate).toFixed(2) }}</p>
-            <p class="metric-label">Estimated Cost</p>
-          </div>
-          
-          <div class="metrics-fuel">
-            <h4><i class="fas fa-gas-pump"></i> Fuel</h4>
-            <p class="metric-value">{{ fuelUsed.toFixed(1) }} L</p>
-            <p class="metric-label">Fuel Consumption</p>
-          </div>
-          
-          <div class="metrics-emissions">
+   <div class="metrics-grid">
+  <div class="metrics-time">
+    <h4><i class="fas fa-hourglass-half"></i> Time</h4>
+    <p class="metric-value">{{ (routes[selectedRoute].duration + timeAdjustment).toFixed(1) }} hrs</p>
+    <p class="metric-label">Adjusted Duration</p>
+  </div>
+  
 
-            <h4><i class="fas fa-cloud"></i> Emissions</h4>
-            <p class="metric-value">{{ co2Emitted.toFixed(1) }} kg</p>
-            <p class="metric-label">CO₂ Emissions</p>
-          </div>
-        </div>
-        
+  <div class="metrics-cost">
+  <h4><i class="fas fa-rupee-sign"></i> Cost</h4>
+  <p class="metric-value">₹{{ (fuelUsed * costRate).toFixed(2) }}</p>
+  <p class="metric-label">{{ fuelUsed.toFixed(1) }}L × ₹{{ costRate }}/L</p>
+</div>
+  <!-- <div class="metrics-cost">
+    <h4><i class="fas fa-rupee-sign"></i> Cost</h4>
+    <p class="metric-value">₹{{ routes[selectedRoute].cost.toFixed(2) }}</p> 
+    <p class="metric-label">Estimated Cost</p>
+  </div> -->
+  
+  <div class="metrics-fuel">
+    <h4><i class="fas fa-gas-pump"></i> Fuel</h4>
+    <p class="metric-value">{{ fuelUsed.toFixed(1) }} L</p>
+    <p class="metric-label">Fuel Consumption</p>
+  </div>
+  
+  <div class="metrics-emissions">
+    <h4><i class="fas fa-cloud"></i> Emissions</h4>
+    <p class="metric-value">{{ co2Emitted.toFixed(1) }} kg</p>
+    <p class="metric-label">CO₂ Emissions</p>
+  </div>
+</div>
+       
         <div class="notes-input">
           <i class="fas fa-sticky-note icon"></i>
           <input type="text" v-model="routeNotes" placeholder="Add route notes..." maxlength="100" />
@@ -300,66 +344,165 @@ export default {
       }));
       this.loadRouteFromUrl();
     },
-    async calculateRoute(summaryToMatch = null) {
-      if (!this.start || !this.end) {
-        alert('Please enter both start and end locations!');
-        return;
+    // async calculateRoute(summaryToMatch = null) {
+    //   if (!this.start || !this.end) {
+    //     alert('Please enter both start and end locations!');
+    //     return;
+    //   }
+    //   if (!this.directionsService || !this.directionsRenderer) {
+    //     console.error('Directions service not initialized yet!');
+    //     return;
+    //   }
+    //   this.isLoading = true;
+    //   const request = {
+    //     origin: this.start,
+    //     destination: this.end,
+    //     travelMode: 'DRIVING',
+    //     provideRouteAlternatives: true,
+    //   };
+    //   this.directionsService.route(request, async (result, status) => {
+    //     if (status === 'OK') {
+    //       let tempRoutes = result.routes.map((route, index) => {
+    //         const distance = route.legs[0].distance.value / 1000;
+    //         const duration = route.legs[0].duration.value / 3600;
+    //         const fuelRates = { car: 0.1, truck: 0.3 };
+    //         const co2PerLiter = 2.3;
+    //         const fuel = distance * fuelRates[this.vehicle];
+    //         const co2 = fuel * co2PerLiter;
+    //         const cost = fuel * this.costRate;
+    //         return {
+    //           index,
+    //           distance,
+    //           duration,
+    //           fuel,
+    //           co2,
+    //           cost,
+    //           summary: route.summary || `Route ${index + 1}`,
+    //         };
+    //       });
+
+    //       if (this.optimization === 'fastest') {
+    //         tempRoutes = [...tempRoutes].sort((a, b) => a.duration - b.duration);
+    //       } else if (this.optimization === 'shortest') {
+    //         tempRoutes = [...tempRoutes].sort((a, b) => a.distance - b.distance);
+    //       } else if (this.optimization === 'eco') {
+    //         tempRoutes = [...tempRoutes].sort((a, b) => a.co2 - b.co2);
+    //       }
+    //       this.routes = tempRoutes.map((route, idx) => ({ ...route, index: idx }));
+
+    //       if (summaryToMatch) {
+    //         const matchedRoute = this.routes.find(route => route.summary === summaryToMatch);
+    //         this.selectedRoute = matchedRoute ? matchedRoute.index : 0;
+    //       } else {
+    //         this.selectedRoute = 0;
+    //       }
+
+    //       this.directionsRenderer.setDirections(result);
+    //       this.directionsRenderer.setRouteIndex(this.routes[this.selectedRoute].index);
+    //       this.distance = this.routes[this.selectedRoute].distance;
+    //       this.fuelUsed = this.routes[this.selectedRoute].fuel;
+    //       this.co2Emitted = this.routes[this.selectedRoute].co2;
+
+    //       const startLat = result.routes[0].legs[0].start_location.lat();
+    //       const startLng = result.routes[0].legs[0].start_location.lng();
+    //       const endLat = result.routes[0].legs[0].end_location.lat();
+    //       const endLng = result.routes[0].legs[0].end_location.lng();
+
+    //       const apiKey = '7b9dfa089f8262f39ad120d20b54d8d2'; // Replace with your key
+    //       try {
+    //         const startResponse = await axios.get(
+    //           `https://api.openweathermap.org/data/2.5/weather?lat=${startLat}&lon=${startLng}&appid=${apiKey}&units=metric`
+    //         );
+    //         const endResponse = await axios.get(
+    //           `https://api.openweathermap.org/data/2.5/weather?lat=${endLat}&lon=${endLng}&appid=${apiKey}&units=metric`
+    //         );
+    //         this.startWeather = startResponse.data;
+    //         this.endWeather = endResponse.data;
+    //       } catch (error) {
+    //         console.error('Error fetching weather:', error);
+    //         this.startWeather = null;
+    //         this.endWeather = null;
+    //       }
+    //     } else {
+    //       console.error('Error finding route:', status);
+    //       alert("Couldn't find a route.  Try different locations!");
+    //     }
+    //     this.isLoading = false;
+    //   });
+    // },
+  
+    // selectRoute() {
+    //   this.directionsRenderer.setRouteIndex(this.selectedRoute);
+    //   const route = this.routes[this.selectedRoute];
+    //   this.distance = route.distance;
+    //   this.fuelUsed = route.fuel;
+    //   this.co2Emitted = route.co2;
+    // },
+    // Update the calculateRoute method to take the current fuel price into account
+calculateRoute(summaryToMatch = null) {
+  if (!this.start || !this.end) {
+    alert('Please enter both start and end locations!');
+    return;
+  }
+  if (!this.directionsService || !this.directionsRenderer) {
+    console.error('Directions service not initialized yet!');
+    return;
+  }
+  this.isLoading = true;
+  const request = {
+    origin: this.start,
+    destination: this.end,
+    travelMode: 'DRIVING',
+    provideRouteAlternatives: true,
+  };
+  this.directionsService.route(request, async (result, status) => {
+    if (status === 'OK') {
+      // Make sure we use the current fuel price for calculations
+      const currentFuelPrice = this.costRate || 100; // Default to 100 if not set
+      
+      let tempRoutes = result.routes.map((route, index) => {
+        const distance = route.legs[0].distance.value / 1000;
+        const duration = route.legs[0].duration.value / 3600;
+        const fuelRates = { car: 0.1, truck: 0.3 }; // Liters per km
+        const co2PerLiter = 2.3;
+        const fuel = distance * fuelRates[this.vehicle];
+        const co2 = fuel * co2PerLiter;
+        const cost = fuel * currentFuelPrice; // Use current fuel price
+        return {
+          index,
+          distance,
+          duration,
+          fuel,
+          co2,
+          cost,
+          summary: route.summary || `Route ${index + 1}`,
+        };
+      });
+
+      if (this.optimization === 'fastest') {
+        tempRoutes = [...tempRoutes].sort((a, b) => a.duration - b.duration);
+      } else if (this.optimization === 'shortest') {
+        tempRoutes = [...tempRoutes].sort((a, b) => a.distance - b.distance);
+      } else if (this.optimization === 'eco') {
+        tempRoutes = [...tempRoutes].sort((a, b) => a.co2 - b.co2);
       }
-      if (!this.directionsService || !this.directionsRenderer) {
-        console.error('Directions service not initialized yet!');
-        return;
+      this.routes = tempRoutes.map((route, idx) => ({ ...route, index: idx }));
+
+      if (summaryToMatch) {
+        const matchedRoute = this.routes.find(route => route.summary === summaryToMatch);
+        this.selectedRoute = matchedRoute ? matchedRoute.index : 0;
+      } else {
+        this.selectedRoute = 0;
       }
-      this.isLoading = true;
-      const request = {
-        origin: this.start,
-        destination: this.end,
-        travelMode: 'DRIVING',
-        provideRouteAlternatives: true,
-      };
-      this.directionsService.route(request, async (result, status) => {
-        if (status === 'OK') {
-          let tempRoutes = result.routes.map((route, index) => {
-            const distance = route.legs[0].distance.value / 1000;
-            const duration = route.legs[0].duration.value / 3600;
-            const fuelRates = { car: 0.1, truck: 0.3 };
-            const co2PerLiter = 2.3;
-            const fuel = distance * fuelRates[this.vehicle];
-            const co2 = fuel * co2PerLiter;
-            const cost = fuel * this.costRate;
-            return {
-              index,
-              distance,
-              duration,
-              fuel,
-              co2,
-              cost,
-              summary: route.summary || `Route ${index + 1}`,
-            };
-          });
 
-          if (this.optimization === 'fastest') {
-            tempRoutes = [...tempRoutes].sort((a, b) => a.duration - b.duration);
-          } else if (this.optimization === 'shortest') {
-            tempRoutes = [...tempRoutes].sort((a, b) => a.distance - b.distance);
-          } else if (this.optimization === 'eco') {
-            tempRoutes = [...tempRoutes].sort((a, b) => a.co2 - b.co2);
-          }
-          this.routes = tempRoutes.map((route, idx) => ({ ...route, index: idx }));
+      this.directionsRenderer.setDirections(result);
+      this.directionsRenderer.setRouteIndex(this.routes[this.selectedRoute].index);
+      this.distance = this.routes[this.selectedRoute].distance;
+      this.fuelUsed = this.routes[this.selectedRoute].fuel;
+      this.co2Emitted = this.routes[this.selectedRoute].co2;
 
-          if (summaryToMatch) {
-            const matchedRoute = this.routes.find(route => route.summary === summaryToMatch);
-            this.selectedRoute = matchedRoute ? matchedRoute.index : 0;
-          } else {
-            this.selectedRoute = 0;
-          }
 
-          this.directionsRenderer.setDirections(result);
-          this.directionsRenderer.setRouteIndex(this.routes[this.selectedRoute].index);
-          this.distance = this.routes[this.selectedRoute].distance;
-          this.fuelUsed = this.routes[this.selectedRoute].fuel;
-          this.co2Emitted = this.routes[this.selectedRoute].co2;
-
-          const startLat = result.routes[0].legs[0].start_location.lat();
+        const startLat = result.routes[0].legs[0].start_location.lat();
           const startLng = result.routes[0].legs[0].start_location.lng();
           const endLat = result.routes[0].legs[0].end_location.lat();
           const endLng = result.routes[0].legs[0].end_location.lng();
@@ -384,45 +527,103 @@ export default {
           alert("Couldn't find a route.  Try different locations!");
         }
         this.isLoading = false;
-      });
-    },
-    selectRoute() {
-      this.directionsRenderer.setRouteIndex(this.selectedRoute);
-      const route = this.routes[this.selectedRoute];
-      this.distance = route.distance;
-      this.fuelUsed = route.fuel;
-      this.co2Emitted = route.co2;
-    },
-    async saveRoute() {
-      this.isSaving = true;
-      const routeToSave = {
-        start: this.start,
-        end: this.end,
-        vehicle: this.vehicle,
-        optimization: this.optimization,
-        distance: this.distance,
-        duration: this.routes[this.selectedRoute].duration,
-        adjustedDuration: this.routes[this.selectedRoute].duration + this.timeAdjustment,
-        fuel: this.fuelUsed,
-        co2: this.co2Emitted,
-        summary: this.routes[this.selectedRoute].summary,
-        notes: this.routeNotes || 'No notes',
-        cost: this.fuelUsed * this.costRate,
-        timeAdjustment: this.timeAdjustment,
-        hazard: this.selectedHazard,
-        priority: this.selectedPriority,
-        status: this.selectedStatus,
-      };
-      this.savedRoutes.push(routeToSave);
-      localStorage.setItem('savedRoutes', JSON.stringify(this.savedRoutes));
-      await new Promise(resolve => setTimeout(resolve, 500));
-      this.routeNotes = '';
-      this.timeAdjustment = 0;
-      this.selectedHazard = 'None';
-      this.selectedPriority = 'Medium';
-      this.selectedStatus = 'Planned';
-      this.isSaving = false;
-    },
+      // Rest of the function remains the same...
+    // } else {
+    //   console.error('Error finding route:', status);
+    //   alert('Couldn't find a route. Try different locations!');
+    // }
+    // this.isLoading = false;
+  });
+},
+
+// Add a method to update calculations when fuel price changes
+updateFuelCost() {
+  if (this.routes.length === 0) return;
+  
+  // Update all route calculations with new fuel price
+  this.routes = this.routes.map(route => {
+    return {
+      ...route,
+      cost: route.fuel * this.costRate
+    };
+  });
+  
+  // Update the current route's calculations
+  this.selectRoute();
+},
+
+// Modify the existing methods to handle fuel price changes
+selectRoute() {
+  this.directionsRenderer.setRouteIndex(this.selectedRoute);
+  const route = this.routes[this.selectedRoute];
+  this.distance = route.distance;
+  this.fuelUsed = route.fuel;
+  this.co2Emitted = route.co2;
+  // Update the cost based on current fuel price
+  route.cost = this.fuelUsed * this.costRate;
+},
+
+async saveRoute() {
+  this.isSaving = true;
+  const routeToSave = {
+    start: this.start,
+    end: this.end,
+    vehicle: this.vehicle,
+    optimization: this.optimization,
+    distance: this.distance,
+    duration: this.routes[this.selectedRoute].duration,
+    adjustedDuration: this.routes[this.selectedRoute].duration + this.timeAdjustment,
+    fuel: this.fuelUsed,
+    co2: this.co2Emitted,
+    summary: this.routes[this.selectedRoute].summary,
+    notes: this.routeNotes || 'No notes',
+    cost: this.fuelUsed * this.costRate,
+    costRate: this.costRate, // Save the current fuel price
+    timeAdjustment: this.timeAdjustment,
+    hazard: this.selectedHazard,
+    priority: this.selectedPriority,
+    status: this.selectedStatus,
+  };
+  this.savedRoutes.push(routeToSave);
+  localStorage.setItem('savedRoutes', JSON.stringify(this.savedRoutes));
+  await new Promise(resolve => setTimeout(resolve, 500));
+  this.routeNotes = '';
+  this.timeAdjustment = 0;
+  this.selectedHazard = 'None';
+  this.selectedPriority = 'Medium';
+  this.selectedStatus = 'Planned';
+  this.isSaving = false;
+},
+    // async saveRoute() {
+    //   this.isSaving = true;
+    //   const routeToSave = {
+    //     start: this.start,
+    //     end: this.end,
+    //     vehicle: this.vehicle,
+    //     optimization: this.optimization,
+    //     distance: this.distance,
+    //     duration: this.routes[this.selectedRoute].duration,
+    //     adjustedDuration: this.routes[this.selectedRoute].duration + this.timeAdjustment,
+    //     fuel: this.fuelUsed,
+    //     co2: this.co2Emitted,
+    //     summary: this.routes[this.selectedRoute].summary,
+    //     notes: this.routeNotes || 'No notes',
+    //     cost: this.fuelUsed * this.costRate,
+    //     timeAdjustment: this.timeAdjustment,
+    //     hazard: this.selectedHazard,
+    //     priority: this.selectedPriority,
+    //     status: this.selectedStatus,
+    //   };
+    //   this.savedRoutes.push(routeToSave);
+    //   localStorage.setItem('savedRoutes', JSON.stringify(this.savedRoutes));
+    //   await new Promise(resolve => setTimeout(resolve, 500));
+    //   this.routeNotes = '';
+    //   this.timeAdjustment = 0;
+    //   this.selectedHazard = 'None';
+    //   this.selectedPriority = 'Medium';
+    //   this.selectedStatus = 'Planned';
+    //   this.isSaving = false;
+    // },
     loadSavedRoute(index) {
       const saved = this.savedRoutes[index];
       this.start = saved.start;
@@ -653,7 +854,7 @@ h4 {
 }
 
 input, select, button {
-  width: 100%;
+  width: 90%;
   padding: 12px 12px 12px 35px;
   border: 1px solid #dadce0;
   border-radius: 4px;
@@ -696,7 +897,7 @@ input:focus, select:focus {
   right: 10px;
   top: 50%;
   transform: translateY(-50%);
-  color: #5f6368;
+  color: #464749;
   font-size: 12px;
 }
 
@@ -717,6 +918,7 @@ input:focus, select:focus {
 
 .fuel-costs-section, .time-adjustment-section {
   background-color: #f8f9fa;
+  width:80%;
 }
 
 .routes {
@@ -1104,6 +1306,48 @@ input::placeholder, select {
 
 .control-panel::-webkit-scrollbar-thumb:hover {
   background: #80868b;
+}
+#petrol-cost {
+    width: 75%;
+}
+.time-adjust-input {
+    width: 75%;
+}
+
+
+.price-badge {
+  background-color: #fef7e0;
+  color: #f29900;
+  font-size: 10px;
+  padding: 2px 6px;
+  margin-left: 5px;
+  white-space: nowrap;
+}
+
+/* Make the fuel cost input more prominent */
+.fuel-costs-section .input-group input {
+  border: 1px solid #dadce0;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.fuel-costs-section .input-group input:focus {
+  border-color: #ea4335;
+  box-shadow: 0 0 0 2px rgba(234, 67, 53, 0.2);
+}
+
+/* Add an indicator when fuel prices change */
+@keyframes highlight {
+  0% { background-color: #fef7e0; }
+  100% { background-color: transparent; }
+}
+
+.metrics-cost {
+  position: relative;
+}
+
+.metrics-cost.updated {
+  animation: highlight 2s ease-out;
 }
 
 </style>
