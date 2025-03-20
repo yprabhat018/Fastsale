@@ -1,15 +1,3 @@
-<!-- 
-<template>
-  <div id="app">
-    <nav class="navbar">
-      <router-link to="/route-planner" class="nav-link">Route Optimization</router-link>
-      <router-link to="/logistics-management" class="nav-link">Logistics Management</router-link>
-      <router-link to="/shipping-tracking" class="nav-link">Shipping Tracking</router-link>
-      <router-link to="/crowdsourced-alerts" class="nav-link">Crowdsourced Alerts</router-link>
-    </nav>
-    <router-view></router-view>
-  </div>
-</template> -->
 
 <template>
   <div id="app">

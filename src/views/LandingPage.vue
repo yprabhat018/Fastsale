@@ -1,3 +1,4 @@
+
 <template>
   <div class="landing-page">
     <div class="map-background">
