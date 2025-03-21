@@ -83,7 +83,10 @@
       <div class="cta-content">
         <h2>Ready to Transform Your Logistics?</h2>
         <p>Join thousands of companies optimizing their supply chain with Logistics Master</p>
-        <button @click="getStarted" class="start-btn">Get Started</button>
+        <!-- <button @click="getStarted" class="start-btn">Get Started</button> -->
+        
+    <button @click="getStarted" class="start-btn">Get Started</button>
+  
       </div>
       <div class="cta-shape"></div>
     </section>
@@ -170,14 +173,17 @@ export default {
   },
   methods: {
     getStarted() {
+    
+        this.$router.push('/login');
       // Safe routing with error handling
-      if (this.$router) {
-        this.$router.push('/app').catch(err => {
-          console.error('Routing error:', err);
-        });
-      } else {
-        console.error('Router not available! Check router setup in main.js');
-      }
+    //   if (this.$router) {
+    //     this.$router.push('/app').catch(err => {
+    //       console.error('Routing error:', err);
+    //     });
+    //   } else {
+    //     console.error('Router not available! Check router setup in main.js');
+    //   }
+    // },
     },
     scrollToFeatures() {
       this.$refs.features.scrollIntoView({ behavior: 'smooth' });

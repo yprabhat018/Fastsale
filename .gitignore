@@ -23,3 +23,8 @@ Thumbs.db
 # Ignore editor/IDE-specific files
 .vscode/
 .idea/
+
+
+.firebase/
+ .firebaserc
+ firebase.json

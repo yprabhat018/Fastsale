@@ -1,7 +1,55 @@
 
+// import { createApp } from 'vue';
+// import App from './App.vue';
+// import router from './router';
+
+// import firebase from 'firebase/compat/app'; // Correct compat 
+// import 'firebase/compat/auth'; // Compat auth module
+
+// // Your Firebase config from Firebase Console > Project Settings > Web App
+// const firebaseConfig = {
+//   apiKey: "AIzaSyBWL6upXE9ddyg316YjKEP3uhqD94zzZ6o",
+//   authDomain: "logisticsapp-452114.firebaseapp.com",
+//   projectId: "logisticsapp-452114",
+//   storageBucket: "logisticsapp-452114.firebasestorage.app",
+//   messagingSenderId: "141761337686",
+//   appId: "1:141761337686:web:e69c9aa6087f414571def7"
+// };
+
+// // Initialize Firebase
+// firebase.initializeApp(firebaseConfig);
+
+// firebase.auth().onAuthStateChanged(user => {
+//   console.log('Auth state changed:', user ? 'Logged in' : 'Logged out');
+// });
+
+// const app = createApp(App);
+// app.use(router);
+// app.mount('#app');
+
+
 import { createApp } from 'vue';
 import App from './App.vue';
 import router from './router';
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/auth';
+
+// Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyBWL6upXE9ddyg316YjKEP3uhqD94zzZ6o",
+  authDomain: "logisticsapp-452114.firebaseapp.com",
+  projectId: "logisticsapp-452114",
+  storageBucket: "logisticsapp-452114.firebasestorage.app",
+  messagingSenderId: "141761337686",
+  appId: "1:141761337686:web:e69c9aa6087f414571def7"
+};
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+
+firebase.auth().onAuthStateChanged(user => {
+  console.log('Auth state changed:', user ? 'Logged in' : 'Logged out');
+});
 
 // Function to load Google Maps script dynamically
 function loadGoogleMapsScript(apiKey) {
@@ -20,9 +68,10 @@ function loadGoogleMapsScript(apiKey) {
   });
 }
 
-const GOOGLE_MAPS_API_KEY = 'AIzaSyCOrCd4askrLzy3Ml2LGzsX1a1pHmuLC6k'; // Replace with your key
+const GOOGLE_MAPS_API_KEY = 'AIzaSyCOrCd4askrLzy3Ml2LGzsX1a1pHmuLC6k';
 
 const app = createApp(App);
+
 loadGoogleMapsScript(GOOGLE_MAPS_API_KEY)
   .then(() => {
     app.use(router);

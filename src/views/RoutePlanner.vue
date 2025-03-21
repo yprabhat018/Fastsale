@@ -299,146 +299,149 @@ export default {
   },
   methods: {
     initializeMap() {
-      this.map = new window.google.maps.Map(document.getElementById('map'), {
-        center: { lat: 37.7749, lng: -122.4194 },
-        zoom: 12,
-        styles: [
-          {
-            featureType: "administrative",
-            elementType: "geometry",
-            stylers: [{ visibility: "simplified" }]
+  // Default to India (New Delhi)
+  const defaultCenter = { lat: 28.6139, lng: 77.2090 };
+  const defaultZoom = 5; // Wider view for India
+
+  this.map = new window.google.maps.Map(document.getElementById('map'), {
+    center: defaultCenter,
+    zoom: defaultZoom,
+    styles: [
+      {
+        featureType: "administrative",
+        elementType: "geometry",
+        stylers: [{ visibility: "simplified" }]
+      },
+      {
+        featureType: "poi",
+        stylers: [{ visibility: "simplified" }]
+      },
+      {
+        featureType: "road",
+        elementType: "labels",
+        stylers: [{ visibility: "on" }]
+      }
+    ]
+  });
+
+  const trafficLayer = new window.google.maps.TrafficLayer();
+  trafficLayer.setMap(this.map);
+  this.directionsService = new window.google.maps.DirectionsService();
+  this.directionsRenderer = new window.google.maps.DirectionsRenderer({
+    polylineOptions: {
+      strokeColor: "#4285F4",
+      strokeWeight: 5
+    }
+  });
+  this.directionsRenderer.setMap(this.map);
+
+  // Try to get user's location
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const userLocation = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        };
+        this.map.setCenter(userLocation);
+        this.map.setZoom(12); // Closer zoom for user location
+        
+        // Optional: Add a marker for user's location
+        new window.google.maps.Marker({
+          position: userLocation,
+          map: this.map,
+          icon: {
+            path: window.google.maps.SymbolPath.CIRCLE,
+            scale: 8,
+            fillColor: '#4285F4',
+            fillOpacity: 1,
+            strokeColor: '#FFFFFF',
+            strokeWeight: 2
           },
-          {
-            featureType: "poi",
-            stylers: [{ visibility: "simplified" }]
-          },
-          {
-            featureType: "road",
-            elementType: "labels",
-            stylers: [{ visibility: "on" }]
-          }
-        ]
-      });
-      const trafficLayer = new window.google.maps.TrafficLayer();
-      trafficLayer.setMap(this.map);
-      this.directionsService = new window.google.maps.DirectionsService();
-      this.directionsRenderer = new window.google.maps.DirectionsRenderer({
-        polylineOptions: {
-          strokeColor: "#4285F4",
-          strokeWeight: 5
-        }
-      });
-      this.directionsRenderer.setMap(this.map);
-    },
-    loadInitialData() {
-      const storedRoutes = JSON.parse(localStorage.getItem('savedRoutes')) || [];
-      this.savedRoutes = storedRoutes.map(route => ({
-        ...route,
-        cost: route.cost || 0,
-        adjustedDuration: route.adjustedDuration || route.duration || 0,
-        timeAdjustment: route.timeAdjustment || 0,
-        notes: route.notes || 'No notes',
-        hazard: route.hazard || 'None',
-        priority: route.priority || 'Medium',
-        status: route.status || 'Planned',
-      }));
-      this.loadRouteFromUrl();
-    },
-    // async calculateRoute(summaryToMatch = null) {
-    //   if (!this.start || !this.end) {
-    //     alert('Please enter both start and end locations!');
-    //     return;
-    //   }
-    //   if (!this.directionsService || !this.directionsRenderer) {
-    //     console.error('Directions service not initialized yet!');
-    //     return;
-    //   }
-    //   this.isLoading = true;
-    //   const request = {
-    //     origin: this.start,
-    //     destination: this.end,
-    //     travelMode: 'DRIVING',
-    //     provideRouteAlternatives: true,
-    //   };
-    //   this.directionsService.route(request, async (result, status) => {
-    //     if (status === 'OK') {
-    //       let tempRoutes = result.routes.map((route, index) => {
-    //         const distance = route.legs[0].distance.value / 1000;
-    //         const duration = route.legs[0].duration.value / 3600;
-    //         const fuelRates = { car: 0.1, truck: 0.3 };
-    //         const co2PerLiter = 2.3;
-    //         const fuel = distance * fuelRates[this.vehicle];
-    //         const co2 = fuel * co2PerLiter;
-    //         const cost = fuel * this.costRate;
-    //         return {
-    //           index,
-    //           distance,
-    //           duration,
-    //           fuel,
-    //           co2,
-    //           cost,
-    //           summary: route.summary || `Route ${index + 1}`,
-    //         };
-    //       });
+          title: 'Your Location'
+        });
+      },
+      (error) => {
+        console.log('Geolocation failed:', error.message);
+        // Stick with default India center if geolocation fails
+      },
+      { timeout: 10000 } // Timeout after 10s
+    );
+  } else {
+    console.log('Geolocation not supported by browser');
+    // Stick with default India center
+  }
 
-    //       if (this.optimization === 'fastest') {
-    //         tempRoutes = [...tempRoutes].sort((a, b) => a.duration - b.duration);
-    //       } else if (this.optimization === 'shortest') {
-    //         tempRoutes = [...tempRoutes].sort((a, b) => a.distance - b.distance);
-    //       } else if (this.optimization === 'eco') {
-    //         tempRoutes = [...tempRoutes].sort((a, b) => a.co2 - b.co2);
-    //       }
-    //       this.routes = tempRoutes.map((route, idx) => ({ ...route, index: idx }));
+  // Load saved routes from localStorage
+  this.loadInitialData();
+},
 
-    //       if (summaryToMatch) {
-    //         const matchedRoute = this.routes.find(route => route.summary === summaryToMatch);
-    //         this.selectedRoute = matchedRoute ? matchedRoute.index : 0;
-    //       } else {
-    //         this.selectedRoute = 0;
-    //       }
+loadInitialData() {
+  const storedRoutes = JSON.parse(localStorage.getItem('savedRoutes')) || [];
+  this.savedRoutes = storedRoutes.map(route => ({
+    ...route,
+    cost: route.cost || 0,
+    adjustedDuration: route.adjustedDuration || route.duration || 0,
+    timeAdjustment: route.timeAdjustment || 0,
+    notes: route.notes || 'No notes',
+    hazard: route.hazard || 'None',
+    priority: route.priority || 'Medium',
+    status: route.status || 'Planned',
+  }));
+  this.loadRouteFromUrl();
+},
 
-    //       this.directionsRenderer.setDirections(result);
-    //       this.directionsRenderer.setRouteIndex(this.routes[this.selectedRoute].index);
-    //       this.distance = this.routes[this.selectedRoute].distance;
-    //       this.fuelUsed = this.routes[this.selectedRoute].fuel;
-    //       this.co2Emitted = this.routes[this.selectedRoute].co2;
+  //   initializeMap() {
 
-    //       const startLat = result.routes[0].legs[0].start_location.lat();
-    //       const startLng = result.routes[0].legs[0].start_location.lng();
-    //       const endLat = result.routes[0].legs[0].end_location.lat();
-    //       const endLng = result.routes[0].legs[0].end_location.lng();
+  //     const defaultCenter = { lat: 28.6139, lng: 77.2090 };
+  // const defaultZoom = 5; // Wider view for India
 
-    //       const apiKey = '7b9dfa089f8262f39ad120d20b54d8d2'; // Replace with your key
-    //       try {
-    //         const startResponse = await axios.get(
-    //           `https://api.openweathermap.org/data/2.5/weather?lat=${startLat}&lon=${startLng}&appid=${apiKey}&units=metric`
-    //         );
-    //         const endResponse = await axios.get(
-    //           `https://api.openweathermap.org/data/2.5/weather?lat=${endLat}&lon=${endLng}&appid=${apiKey}&units=metric`
-    //         );
-    //         this.startWeather = startResponse.data;
-    //         this.endWeather = endResponse.data;
-    //       } catch (error) {
-    //         console.error('Error fetching weather:', error);
-    //         this.startWeather = null;
-    //         this.endWeather = null;
-    //       }
-    //     } else {
-    //       console.error('Error finding route:', status);
-    //       alert("Couldn't find a route.  Try different locations!");
-    //     }
-    //     this.isLoading = false;
-    //   });
-    // },
-  
-    // selectRoute() {
-    //   this.directionsRenderer.setRouteIndex(this.selectedRoute);
-    //   const route = this.routes[this.selectedRoute];
-    //   this.distance = route.distance;
-    //   this.fuelUsed = route.fuel;
-    //   this.co2Emitted = route.co2;
-    // },
-    // Update the calculateRoute method to take the current fuel price into account
+  // this.map = new window.google.maps.Map(document.getElementById('map'), {
+  //   center: defaultCenter,
+  //   zoom: defaultZoom,
+  //   styles: [
+  //         {
+  //           featureType: "administrative",
+  //           elementType: "geometry",
+  //           stylers: [{ visibility: "simplified" }]
+  //         },
+  //         {
+  //           featureType: "poi",
+  //           stylers: [{ visibility: "simplified" }]
+  //         },
+  //         {
+  //           featureType: "road",
+  //           elementType: "labels",
+  //           stylers: [{ visibility: "on" }]
+  //         }
+  //       ]
+  //     });
+  //     const trafficLayer = new window.google.maps.TrafficLayer();
+  //     trafficLayer.setMap(this.map);
+  //     this.directionsService = new window.google.maps.DirectionsService();
+  //     this.directionsRenderer = new window.google.maps.DirectionsRenderer({
+  //       polylineOptions: {
+  //         strokeColor: "#4285F4",
+  //         strokeWeight: 5
+  //       }
+  //     });
+  //     this.directionsRenderer.setMap(this.map);
+  //   },
+  //   loadInitialData() {
+  //     const storedRoutes = JSON.parse(localStorage.getItem('savedRoutes')) || [];
+  //     this.savedRoutes = storedRoutes.map(route => ({
+  //       ...route,
+  //       cost: route.cost || 0,
+  //       adjustedDuration: route.adjustedDuration || route.duration || 0,
+  //       timeAdjustment: route.timeAdjustment || 0,
+  //       notes: route.notes || 'No notes',
+  //       hazard: route.hazard || 'None',
+  //       priority: route.priority || 'Medium',
+  //       status: route.status || 'Planned',
+  //     }));
+  //     this.loadRouteFromUrl();
+  //   },
+ 
 calculateRoute(summaryToMatch = null) {
   if (!this.start || !this.end) {
     alert('Please enter both start and end locations!');
@@ -527,12 +530,7 @@ calculateRoute(summaryToMatch = null) {
           alert("Couldn't find a route.  Try different locations!");
         }
         this.isLoading = false;
-      // Rest of the function remains the same...
-    // } else {
-    //   console.error('Error finding route:', status);
-    //   alert('Couldn't find a route. Try different locations!');
-    // }
-    // this.isLoading = false;
+      
   });
 },
 
@@ -594,36 +592,7 @@ async saveRoute() {
   this.selectedStatus = 'Planned';
   this.isSaving = false;
 },
-    // async saveRoute() {
-    //   this.isSaving = true;
-    //   const routeToSave = {
-    //     start: this.start,
-    //     end: this.end,
-    //     vehicle: this.vehicle,
-    //     optimization: this.optimization,
-    //     distance: this.distance,
-    //     duration: this.routes[this.selectedRoute].duration,
-    //     adjustedDuration: this.routes[this.selectedRoute].duration + this.timeAdjustment,
-    //     fuel: this.fuelUsed,
-    //     co2: this.co2Emitted,
-    //     summary: this.routes[this.selectedRoute].summary,
-    //     notes: this.routeNotes || 'No notes',
-    //     cost: this.fuelUsed * this.costRate,
-    //     timeAdjustment: this.timeAdjustment,
-    //     hazard: this.selectedHazard,
-    //     priority: this.selectedPriority,
-    //     status: this.selectedStatus,
-    //   };
-    //   this.savedRoutes.push(routeToSave);
-    //   localStorage.setItem('savedRoutes', JSON.stringify(this.savedRoutes));
-    //   await new Promise(resolve => setTimeout(resolve, 500));
-    //   this.routeNotes = '';
-    //   this.timeAdjustment = 0;
-    //   this.selectedHazard = 'None';
-    //   this.selectedPriority = 'Medium';
-    //   this.selectedStatus = 'Planned';
-    //   this.isSaving = false;
-    // },
+   
     loadSavedRoute(index) {
       const saved = this.savedRoutes[index];
       this.start = saved.start;
